@@ -76,12 +76,15 @@ def config_health_check(config: configuration.Configuration, in_backtesting: boo
 
     # 2 ensure single trader activated
     try:
-        trader_enabled = trading_api.is_trader_enabled_in_config(config.config)
-        if trader_enabled:
-            simulator_enabled = trading_api.is_trader_simulator_enabled_in_config(config.config)
-            if simulator_enabled:
-                logger.error(f"Impossible to activate a trader simulator additionally to a "
-                             f"real trader, simulator deactivated.")
+        if trader_enabled := trading_api.is_trader_enabled_in_config(
+            config.config
+        ):
+            if simulator_enabled := trading_api.is_trader_simulator_enabled_in_config(
+                config.config
+            ):
+                logger.error(
+                    'Impossible to activate a trader simulator additionally to a real trader, simulator deactivated.'
+                )
                 config.config[common_constants.CONFIG_SIMULATOR][common_constants.CONFIG_ENABLED_OPTION] = False
                 should_replace_config = True
     except KeyError as e:
@@ -96,8 +99,9 @@ def config_health_check(config: configuration.Configuration, in_backtesting: boo
     if not (in_backtesting or
             trading_api.is_trader_enabled_in_config(config.config) or
             trading_api.is_trader_simulator_enabled_in_config(config.config)):
-        logger.error(f"Real trader and trader simulator are deactivated in configuration. This will prevent OctoBot "
-                     f"from creating any new order.")
+        logger.error(
+            'Real trader and trader simulator are deactivated in configuration. This will prevent OctoBot from creating any new order.'
+        )
 
     # 4 save fixed config if necessary
     if should_replace_config:
@@ -145,8 +149,7 @@ def set_default_profile(config, from_default_config_file=constants.DEFAULT_CONFI
 
 def get_default_tentacles_url(version=None):
     if version is None:
-        version = constants.TENTACLES_REQUIRED_VERSION \
-            if constants.TENTACLES_REQUIRED_VERSION else constants.LONG_VERSION
+        version = constants.TENTACLES_REQUIRED_VERSION or constants.LONG_VERSION
     return os.getenv(
         constants.ENV_TENTACLES_URL,
         f"{constants.OCTOBOT_ONLINE}/"
@@ -210,16 +213,15 @@ def migrate_from_previous_config(config):
                 f"{previous_config_save_path}")
     # save the current config file in case some data should be kept
     shutil.copyfile(config_path, previous_config_save_path)
-    if common_constants.CONFIG_CRYPTO_CURRENCIES in config.config:
-        # config migration required
-        # add missing exchange enabled config
-        for exchange_config in config.config[common_constants.CONFIG_EXCHANGES].values():
-            exchange_config[common_constants.CONFIG_ENABLED_OPTION] = \
-                exchange_config.get(common_constants.CONFIG_ENABLED_OPTION, True)
-        for key in ("tentacles-packages", "performance-analyser", "PERF", "SAVE_EVALUATIONS"):
-            config.config.pop(key, None)
-        config.save()
-        return True
-    else:
+    if common_constants.CONFIG_CRYPTO_CURRENCIES not in config.config:
         # real config issue
         return False
+    # config migration required
+    # add missing exchange enabled config
+    for exchange_config in config.config[common_constants.CONFIG_EXCHANGES].values():
+        exchange_config[common_constants.CONFIG_ENABLED_OPTION] = \
+            exchange_config.get(common_constants.CONFIG_ENABLED_OPTION, True)
+    for key in ("tentacles-packages", "performance-analyser", "PERF", "SAVE_EVALUATIONS"):
+        config.config.pop(key, None)
+    config.save()
+    return True

@@ -157,7 +157,6 @@ class OctoBotBacktesting:
     # Use check_remaining_objects to check remaining objects from garbage collector after calling stop().
     # Warning: can take a long time when a lot of objects exist
     def check_remaining_objects(self):
-        objects_leak_errors = []
         exchanges_count = len(self.exchange_manager_ids)
         to_watch_objects = (exchange_data.ExchangeSymbolData, exchanges.ExchangeManager,
                             exchanges.ExchangeSimulator, exchange_data.OHLCVUpdaterSimulator)
@@ -174,13 +173,11 @@ class OctoBotBacktesting:
                 objects_references[type(obj)] = (objects_references[type(obj)][0] + 1,
                                                  objects_references[type(obj)][1])
 
-        for obj, max_ref in expected_max_objects_references.items():
-            if objects_references[obj][0] > max_ref:
-                objects_leak_errors.append(_get_remaining_object_error(obj,
-                                                                       max_ref,
-                                                                       objects_references[obj]))
-
-        if objects_leak_errors:
+        if objects_leak_errors := [
+            _get_remaining_object_error(obj, max_ref, objects_references[obj])
+            for obj, max_ref in expected_max_objects_references.items()
+            if objects_references[obj][0] > max_ref
+        ]:
             errors = "\n".join(objects_leak_errors)
             raise AssertionError(
                 f"[Dev oriented error: no effect on backtesting result, please report if you see it]: {errors}"

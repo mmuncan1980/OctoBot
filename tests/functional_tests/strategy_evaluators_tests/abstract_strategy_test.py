@@ -87,7 +87,7 @@ class AbstractStrategyTest(octobot_backtesting.AbstractBacktestingTest, abc.ABC)
         for tentacle_class_name in tentacles_activation[tentacles_manager_constants.TENTACLES_TRADING_PATH]:
             to_update_config[tentacle_class_name] = False
         # Add required elements if missing
-        to_update_config.update({evaluator: True for evaluator in default_evaluators})
+        to_update_config |= {evaluator: True for evaluator in default_evaluators}
         to_update_config[strategy_evaluator_class.get_name()] = True
         to_update_config[trading_mode_class.get_name()] = True
         tentacles_manager_api.update_activation_configuration(self.tentacles_setup_config, to_update_config, False,

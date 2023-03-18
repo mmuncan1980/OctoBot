@@ -60,12 +60,6 @@ class BinaryUpdater(updater_class.Updater):
         self.logger.error(f"Please manually update your OctoBot executable from this page: "
                           f"{self._get_latest_release_url(False)}")
         return False
-        new_binary_file = await self._download_binary()
-        if new_binary_file is not None:
-            self._give_execution_rights(new_binary_file)
-            self._move_binaries(commands.get_bot_file(), new_binary_file)
-            return True
-        return False
 
     def _get_latest_release_url(self, use_api_url):
         base = f"{commons_constants.GITHUB_API_CONTENT_URL}/repos" if use_api_url else commons_constants.GITHUB_BASE_URL
@@ -109,23 +103,22 @@ class BinaryUpdater(updater_class.Updater):
         if platform is commons_enums.PlatformsName.WINDOWS:
             if os_util.is_machine_64bit():
                 return f"{constants.PROJECT_NAME}{self.BINARY_DELIVERY_SEPARATOR}" \
-                       f"{DeliveryPlatformsName.WINDOWS.value}{self.BINARY_DELIVERY_SEPARATOR}" \
-                       f"{DeliveryArchitectureName.X64_X86.value}{DeliveryPlatformsExtension.WINDOWS.value}"
+                           f"{DeliveryPlatformsName.WINDOWS.value}{self.BINARY_DELIVERY_SEPARATOR}" \
+                           f"{DeliveryArchitectureName.X64_X86.value}{DeliveryPlatformsExtension.WINDOWS.value}"
         elif platform is commons_enums.PlatformsName.MAC:
-            if os_util.is_machine_64bit():
-                if os_util.is_machine_64bit():
-                    return f"{constants.PROJECT_NAME}{self.BINARY_DELIVERY_SEPARATOR}" \
+            if os_util.is_machine_64bit() and os_util.is_machine_64bit():
+                return f"{constants.PROJECT_NAME}{self.BINARY_DELIVERY_SEPARATOR}" \
                            f"{DeliveryPlatformsName.MAC.value}{self.BINARY_DELIVERY_SEPARATOR}" \
                            f"{DeliveryArchitectureName.X64_X86.value}{DeliveryPlatformsExtension.MAC.value}"
         elif platform is commons_enums.PlatformsName.LINUX:
             if os_util.is_machine_64bit():
                 return f"{constants.PROJECT_NAME}{self.BINARY_DELIVERY_SEPARATOR}" \
-                       f"{DeliveryPlatformsName.LINUX.value}{self.BINARY_DELIVERY_SEPARATOR}" \
-                       f"{DeliveryArchitectureName.X64_X86.value}{DeliveryPlatformsExtension.LINUX.value}"
+                           f"{DeliveryPlatformsName.LINUX.value}{self.BINARY_DELIVERY_SEPARATOR}" \
+                           f"{DeliveryArchitectureName.X64_X86.value}{DeliveryPlatformsExtension.LINUX.value}"
             elif os_util.is_arm_machine():
                 return f"{constants.PROJECT_NAME}{self.BINARY_DELIVERY_SEPARATOR}" \
-                       f"{DeliveryPlatformsName.LINUX.value}{self.BINARY_DELIVERY_SEPARATOR}" \
-                       f"{DeliveryArchitectureName.ARM_X64.value}{DeliveryPlatformsExtension.LINUX.value}"
+                           f"{DeliveryPlatformsName.LINUX.value}{self.BINARY_DELIVERY_SEPARATOR}" \
+                           f"{DeliveryArchitectureName.ARM_X64.value}{DeliveryPlatformsExtension.LINUX.value}"
         return None
 
     async def _download_binary(self):
@@ -133,7 +126,9 @@ class BinaryUpdater(updater_class.Updater):
         new_binary_file = f"{release_asset_name}{self.NEW_BINARY_SUFFIX}"
         new_binary_file_url = matching_asset_binary["browser_download_url"]
         if matching_asset_binary is None:
-            self.logger.error(f"Error when downloading latest version binary : Release not found on server")
+            self.logger.error(
+                "Error when downloading latest version binary : Release not found on server"
+            )
             return None
         self.logger.info(f"Start downloading OctoBot update at {new_binary_file_url}")
         async with aiofiles.open(new_binary_file, 'wb+') as downloaded_file:
@@ -141,11 +136,11 @@ class BinaryUpdater(updater_class.Updater):
                                                     file_url=new_binary_file_url,
                                                     aiohttp_session=aiohttp.ClientSession(),
                                                     is_aiofiles_output_file=True)
-        self.logger.info(f"OctoBot update downloaded successfully")
+        self.logger.info("OctoBot update downloaded successfully")
         return new_binary_file
 
     def _move_binaries(self, current_binary_file, new_binary_file):
-        self.logger.info(f"Updating local binary file")
+        self.logger.info("Updating local binary file")
         old_binary_path = f"{current_binary_file}{self.OLD_BINARY_SUFFIX}"
         try:
             os.remove(old_binary_path)
@@ -156,6 +151,6 @@ class BinaryUpdater(updater_class.Updater):
 
     def _give_execution_rights(self, new_binary_file):
         if os_util.get_os() is not commons_enums.PlatformsName.WINDOWS:
-            self.logger.info(f"Adding execution rights to updated OctoBot binary")
+            self.logger.info("Adding execution rights to updated OctoBot binary")
             st = os.stat(new_binary_file)
             os.chmod(new_binary_file, st.st_mode | stat.S_IEXEC)

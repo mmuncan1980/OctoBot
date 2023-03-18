@@ -79,7 +79,7 @@ def ignore_git_requirements(requirements):
 
 REQUIRED = ignore_git_requirements(open('requirements.txt').readlines())
 REQUIRES_PYTHON = '>=3.8'
-CYTHON_DEBUG = False if not os.getenv('CYTHON_DEBUG') else os.getenv('CYTHON_DEBUG')
+CYTHON_DEBUG = os.getenv('CYTHON_DEBUG') or False
 
 setup(
     name=PROJECT_NAME,
@@ -100,15 +100,11 @@ setup(
     tests_require=["pytest"],
     test_suite="tests",
     zip_safe=False,
-    setup_requires=REQUIRED if not CYTHON_DEBUG else [],
+    setup_requires=[] if CYTHON_DEBUG else REQUIRED,
     install_requires=REQUIRED,
     ext_modules=cythonize(ext_modules, gdb_debug=CYTHON_DEBUG),
     python_requires=REQUIRES_PYTHON,
-    entry_points={
-        'console_scripts': [
-            PROJECT_NAME + ' = octobot.cli:main'
-        ]
-    },
+    entry_points={'console_scripts': [f'{PROJECT_NAME} = octobot.cli:main']},
     classifiers=[
         'Development Status :: 4 - Beta',
         'Operating System :: OS Independent',
@@ -116,6 +112,6 @@ setup(
         'Operating System :: Microsoft :: Windows',
         'Operating System :: POSIX',
         'Programming Language :: Python :: 3.8',
-        'Programming Language :: Cython'
+        'Programming Language :: Cython',
     ],
 )

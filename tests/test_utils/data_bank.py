@@ -41,7 +41,10 @@ class DataBank(Initializable):
 
     def __init__(self, data_file=None):
         super().__init__()
-        self.data_file = data_file if data_file else "tests/static/AbstractExchangeHistoryCollector_1586017993.616272.data"
+        self.data_file = (
+            data_file
+            or "tests/static/AbstractExchangeHistoryCollector_1586017993.616272.data"
+        )
         self.exchange_name = None
         self.data_importer = ExchangeDataImporter({}, self.data_file)
         self.default_symbol = "BTC/USDT"
@@ -101,8 +104,12 @@ class DataBank(Initializable):
     # not started, selling started, selling maxed, buying starting, max: back normal:
     def rise_after_over_sold_mode(self):
         self.current_data = self._merge_candles(
-            self.origin_ohlcv_by_symbol[self.default_symbol][TimeFrames.FOUR_HOURS][35:61],
-            self.origin_ohlcv_by_symbol[self.default_symbol][TimeFrames.FOUR_HOURS][0:49]
+            self.origin_ohlcv_by_symbol[self.default_symbol][
+                TimeFrames.FOUR_HOURS
+            ][35:61],
+            self.origin_ohlcv_by_symbol[self.default_symbol][
+                TimeFrames.FOUR_HOURS
+            ][:49],
         )
         return TimeFrames.FOUR_HOURS, 35, 43, 46, 47, 75
 

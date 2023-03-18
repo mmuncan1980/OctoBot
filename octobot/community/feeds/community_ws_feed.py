@@ -83,8 +83,8 @@ class CommunityWSFeed(abstract_feed.AbstractFeed):
                         self.logger.exception(e, True, f"Error while consuming feed: {e}")
             except (websockets.ConnectionClosedError, ConnectionRefusedError):
                 if self._reconnect_attempts == 0:
-                    self.logger.warning(f"Disconnected from community, reconnecting now.")
-                    # first reconnect instantly
+                    self.logger.warning("Disconnected from community, reconnecting now.")
+                                # first reconnect instantly
                 else:
                     # use self.RECONNECT_DELAY + or - 0-10 %
                     reconnect_delay = self.RECONNECT_DELAY * (1 + (random.random() * 2 - 1) / 10)
@@ -178,8 +178,7 @@ class CommunityWSFeed(abstract_feed.AbstractFeed):
 
     def _get_callbacks(self, parsed_message):
         channel_type = self._get_channel_type(parsed_message)
-        for callback in self.feed_callbacks.get(channel_type, {}).get(None, ()):
-            yield callback
+        yield from self.feed_callbacks.get(channel_type, {}).get(None, ())
         try:
             identifier = self._get_identifier(parsed_message)
         except KeyError:
@@ -189,8 +188,7 @@ class CommunityWSFeed(abstract_feed.AbstractFeed):
         if identifier is None:
             # do not yield the same callback twice
             return
-        for callback in self.feed_callbacks.get(channel_type, {}).get(identifier, ()):
-            yield callback
+        yield from self.feed_callbacks.get(channel_type, {}).get(identifier, ())
 
     def _get_channel_type(self, message):
         return commons_enums.CommunityChannelTypes(message[commons_enums.CommunityFeedAttrs.CHANNEL_TYPE.value])
@@ -204,10 +202,14 @@ class CommunityWSFeed(abstract_feed.AbstractFeed):
         })
 
     def _build_stream_id(self, requested_identifier):
-        for stream_id, identifier in self._identifier_by_stream_id.items():
-            if requested_identifier == identifier:
-                return stream_id
-        return None
+        return next(
+            (
+                stream_id
+                for stream_id, identifier in self._identifier_by_stream_id.items()
+                if requested_identifier == identifier
+            ),
+            None,
+        )
 
     async def _subscribe(self):
         await self.send({}, None, None, command=COMMANDS.SUBSCRIBE.value)
@@ -215,7 +217,7 @@ class CommunityWSFeed(abstract_feed.AbstractFeed):
         try:
             await asyncio.wait_for(self._get_subscribe_answer(), self.INIT_TIMEOUT)
         except asyncio.TimeoutError:
-            raise authentication.AuthenticationError(f"Failed to subscribe to feed")
+            raise authentication.AuthenticationError("Failed to subscribe to feed")
 
     async def _get_subscribe_answer(self):
         async for message in self.websocket_connection:
