@@ -70,9 +70,10 @@ def can_read_metrics(config):
 
 
 def _format_community_data(json_bot_metrics):
-    formatted_community_data = dict()
-    formatted_community_data["total_count"] = len(json_bot_metrics)
-    formatted_community_data["this_month"] = _get_count_last_months(json_bot_metrics, 1)
+    formatted_community_data = {
+        "total_count": len(json_bot_metrics),
+        "this_month": _get_count_last_months(json_bot_metrics, 1),
+    }
     formatted_community_data["last_six_month"] = _get_count_last_months(json_bot_metrics, 6)
     formatted_community_data["top_pairs"] = _get_top_traded_item(json_bot_metrics,
                                                                  community_fields.CommunityFields.CURRENT_SESSION.value,
@@ -97,12 +98,11 @@ def _is_started_after(item, min_time):
 
 
 def _get_count_last_months(json_bot_metrics, months):
-    month_count = 0
     month_min_timestamp = _get_min_timestamp(months * 30.5)
-    for item in json_bot_metrics:
-        if _is_started_after(item, month_min_timestamp):
-            month_count += 1
-    return month_count
+    return sum(
+        bool(_is_started_after(item, month_min_timestamp))
+        for item in json_bot_metrics
+    )
 
 
 def _get_top_traded_item(json_bot_metrics, session_key, key, top_count=constants.COMMUNITY_TOPS_COUNT):
@@ -130,29 +130,32 @@ def _get_top_occurrences(item_by_occurrence, top_count):
 def _count_occurrences(items, session_key, key, trader_type, since=0.0):
     occurrences_by_item = {}
     for item in items:
-        if _is_started_after(item, since) and _is_of_trader_type(item, trader_type):
-            if session_key in item and key in item[session_key]:
-                for pair in item[session_key][key]:
-                    if pair in occurrences_by_item:
-                        occurrences_by_item[pair] += 1
-                    else:
-                        occurrences_by_item[pair] = 1
+        if (
+            _is_started_after(item, since)
+            and _is_of_trader_type(item, trader_type)
+            and session_key in item
+            and key in item[session_key]
+        ):
+            for pair in item[session_key][key]:
+                if pair in occurrences_by_item:
+                    occurrences_by_item[pair] += 1
+                else:
+                    occurrences_by_item[pair] = 1
     return occurrences_by_item
 
 
 def _is_of_trader_type(item, trader_type):
     if trader_type is TraderTypes.ALL:
         return True
-    else:
-        session = item.get(community_fields.CommunityFields.CURRENT_SESSION.value, {})
-        if trader_type is TraderTypes.REAL \
-                and session.get(community_fields.CommunityFields.TRADER.value, False):
-            return True
-        elif trader_type is TraderTypes.SIMULATED \
-                and not session.get(community_fields.CommunityFields.TRADER.value, False) \
-                and session.get(community_fields.CommunityFields.SIMULATOR.value, False):
-            return True
-        return False
+    session = item.get(community_fields.CommunityFields.CURRENT_SESSION.value, {})
+    if trader_type is TraderTypes.REAL \
+            and session.get(community_fields.CommunityFields.TRADER.value, False):
+        return True
+    elif trader_type is TraderTypes.SIMULATED \
+            and not session.get(community_fields.CommunityFields.TRADER.value, False) \
+            and session.get(community_fields.CommunityFields.SIMULATOR.value, False):
+        return True
+    return False
 
 
 class TraderTypes(enum.Enum):

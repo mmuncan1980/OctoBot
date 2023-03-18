@@ -88,16 +88,16 @@ class StrategyTestSuite(octobot_backtesting.AbstractBacktestingTest):
         await strategy_tester.run_test_up_then_down(None, StrategyTestSuite.SKIP_LONG_STEPS)
 
     def _handle_results(self, independent_backtesting, profitability):
-        trades_count = 0
         profitability_result = None
         skip_this_run = False
         if independent_backtesting is not None:
             exchange_manager_ids = octobot_backtesting_api.get_independent_backtesting_exchange_manager_ids(
                 independent_backtesting)
+            trades_count = 0
             try:
                 for exchange_manager in trading_api.get_exchange_managers_from_exchange_ids(exchange_manager_ids):
                     _, profitability, _, market_average_profitability, _ = \
-                        trading_api.get_profitability_stats(exchange_manager)
+                            trading_api.get_profitability_stats(exchange_manager)
                     # Only one exchange manager per run
                     profitability_result = (profitability, market_average_profitability)
                     trades_count += len(trading_api.get_trade_history(exchange_manager))

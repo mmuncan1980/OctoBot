@@ -179,7 +179,7 @@ def test_get_logged_in_email_unauthenticated(auth):
 
 def test_can_authenticate(auth):
     assert auth.can_authenticate()
-    auth.authentication_url = "todo" + auth.authentication_url
+    auth.authentication_url = f"todo{auth.authentication_url}"
     assert auth.can_authenticate() is False
 
 

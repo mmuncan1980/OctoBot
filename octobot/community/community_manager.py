@@ -67,23 +67,24 @@ class CommunityManager:
             self.octobot_api.get_exchange_manager_ids())
 
     async def start_community_task(self):
-        if self.enabled:
-            try:
-                # first ensure this session is not just a configuration test: register after a timer
-                await asyncio.sleep(common_constants.TIMER_BEFORE_METRICS_REGISTRATION_SECONDS)
-                self._init_community_config()
-                await self.register_session()
-                while self.keep_running:
-                    # send a keepalive at periodic intervals
-                    await asyncio.sleep(common_constants.TIMER_BETWEEN_METRICS_UPTIME_UPDATE)
-                    try:
-                        await self._update_session()
-                    except Exception as e:
-                        self.logger.debug(f"Exception when handling community data : {e}")
-            except asyncio.CancelledError:
-                pass
-            except Exception as e:
-                self.logger.debug(f"Exception when handling community registration: {e}")
+        if not self.enabled:
+            return
+        try:
+            # first ensure this session is not just a configuration test: register after a timer
+            await asyncio.sleep(common_constants.TIMER_BEFORE_METRICS_REGISTRATION_SECONDS)
+            self._init_community_config()
+            await self.register_session()
+            while self.keep_running:
+                # send a keepalive at periodic intervals
+                await asyncio.sleep(common_constants.TIMER_BETWEEN_METRICS_UPTIME_UPDATE)
+                try:
+                    await self._update_session()
+                except Exception as e:
+                    self.logger.debug(f"Exception when handling community data : {e}")
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            self.logger.debug(f"Exception when handling community registration: {e}")
 
     async def stop_task(self):
         self.keep_running = False
@@ -202,17 +203,16 @@ class CommunityManager:
         }
 
     def _get_real_portfolio_value(self):
-        if self.has_real_trader:
-            total_value = 0
-            for exchange_manager in self.exchange_managers:
-                current_value = trading_api.get_current_portfolio_value(exchange_manager)
-                # current_value might be 0 if no trades have been made / canceled => use origin value
-                if current_value == 0:
-                    current_value = trading_api.get_origin_portfolio_value(exchange_manager)
-                total_value += current_value
-            return float(total_value)
-        else:
+        if not self.has_real_trader:
             return 0
+        total_value = 0
+        for exchange_manager in self.exchange_managers:
+            current_value = trading_api.get_current_portfolio_value(exchange_manager)
+            # current_value might be 0 if no trades have been made / canceled => use origin value
+            if current_value == 0:
+                current_value = trading_api.get_origin_portfolio_value(exchange_manager)
+            total_value += current_value
+        return float(total_value)
 
     def _get_traded_pairs(self):
         pairs = set()
@@ -235,11 +235,13 @@ class CommunityManager:
             config_eval.append(trading_mode.get_name())
 
         # strategies
-        for strategy in evaluator_api.get_evaluator_classes_from_type(
+        config_eval.extend(
+            strategy.get_name()
+            for strategy in evaluator_api.get_evaluator_classes_from_type(
                 evaluator_enums.EvaluatorMatrixTypes.STRATEGIES.value,
-                tentacle_setup_config):
-            config_eval.append(strategy.get_name())
-
+                tentacle_setup_config,
+            )
+        )
         # evaluators
         evaluators = evaluator_api.get_evaluator_classes_from_type(evaluator_enums.EvaluatorMatrixTypes.TA.value,
                                                                    tentacle_setup_config)
@@ -248,8 +250,7 @@ class CommunityManager:
         evaluators += evaluator_api.get_evaluator_classes_from_type(
             evaluator_enums.EvaluatorMatrixTypes.REAL_TIME.value,
             tentacle_setup_config)
-        for evaluator in evaluators:
-            config_eval.append(evaluator.get_name())
+        config_eval.extend(evaluator.get_name() for evaluator in evaluators)
         return config_eval
 
     async def _init_bot_id(self):

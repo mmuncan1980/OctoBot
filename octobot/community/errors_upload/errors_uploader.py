@@ -99,10 +99,8 @@ class ErrorsUploader:
                 self._schedule_upload()
 
     def _ensure_event_loop(self):
-        if self.loop is not None:
-            if self.loop.is_running():
-                return True
-            # otherwise, use the current loop
+        if self.loop is not None and self.loop.is_running():
+            return True
         try:
             self.loop = asyncio.get_event_loop()
             return True

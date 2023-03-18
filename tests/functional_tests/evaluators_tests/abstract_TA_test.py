@@ -90,21 +90,20 @@ class AbstractTATest:
         try:
             await self.initialize()
             start_time = timer()
-            with patch.object(self.evaluator, 'get_exchange_symbol_data', new=self._mocked_get_exchange_symbol_data), \
-                    patch.object(self.evaluator, 'evaluation_completed', new=AsyncMock()):
+            with (patch.object(self.evaluator, 'get_exchange_symbol_data', new=self._mocked_get_exchange_symbol_data), patch.object(self.evaluator, 'evaluation_completed', new=AsyncMock())):
                 for symbol in self.data_bank.data_importer.symbols:
                     self.data_bank.default_symbol = symbol
                     self.data_bank.standard_mode(self.ENOUGH_DATA_STARTING_POINT)
                     for time_frame, current_time_frame_data in self.data_bank.origin_ohlcv_by_symbol[symbol].items():
                         if TimeFramesMinutes[time_frame] > TimeFramesMinutes[TimeFrames.THREE_DAYS] and \
-                                skip_long_time_frames:
+                                    skip_long_time_frames:
                             continue
                         self.time_frame = time_frame
-                        # start with 0 data data frame and goes onwards until the end of the data
-                        not_neutral_evaluation_count = 0
                         total_candles_count = len(current_time_frame_data)
                         start_point = self.ENOUGH_DATA_STARTING_POINT + 1
                         if total_candles_count > start_point:
+                            # start with 0 data data frame and goes onwards until the end of the data
+                            not_neutral_evaluation_count = 0
                             for _ in range(start_point, total_candles_count):
                                 if reset_eval_to_none_before_each_eval:
                                     # force None value if possible to make sure eval_note is set during eval_impl()
@@ -118,7 +117,7 @@ class AbstractTATest:
                                     not_neutral_evaluation_count += 1
 
                             assert not_neutral_evaluation_count / (total_candles_count - start_point) >= \
-                                required_not_neutral_evaluation_ratio
+                                    required_not_neutral_evaluation_ratio
             process_time = timer() - start_time
             assert process_time <= time_limit_seconds
         finally:

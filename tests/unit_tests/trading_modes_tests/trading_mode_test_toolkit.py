@@ -75,85 +75,86 @@ def check_oco_order_group(order, order_type, order_price, market_status):
 def check_orders(orders, evaluation, state, nb_orders, market_status):
     if state == trading_enum.EvaluatorStates.NEUTRAL.value or state is None:
         assert orders == []
+    elif math.isnan(evaluation):
+        assert orders == []
+    elif isinstance(state, (int, float, dict)) or state not in [
+        s.value for s in trading_enum.EvaluatorStates
+    ]:
+        assert orders == []
     else:
-        if math.isnan(evaluation):
-            assert orders == []
-        elif state is None or isinstance(state, (int, float, dict)) or state not in [s.value for s in
-                                                                                     trading_enum.EvaluatorStates]:
-            assert orders == []
-        else:
-            assert (not orders and nb_orders == 0) or (len(orders) == nb_orders) \
-                   or ((len(orders) == 0 or len(orders) == 1) and nb_orders == "unknown")
-            if orders:
-                order = orders[0]
-                if order.order_type in (
+        assert (
+            (not orders and nb_orders == 0)
+            or len(orders) == nb_orders
+            or len(orders) in {0, 1}
+            and nb_orders == "unknown"
+        )
+        if orders:
+            order = orders[0]
+            if order.order_type in (
                 trading_enum.TraderOrderType.SELL_MARKET, trading_enum.TraderOrderType.BUY_MARKET):
-                    assert order.status == trading_enum.OrderStatus.FILLED
-                    assert order.simulated is True
-                    assert order.fee
-                    assert order.filled_price > trading_constants.ZERO
-                    assert order.filled_quantity == order.origin_quantity
-                else:
-                    assert order.status == trading_enum.OrderStatus.OPEN
-                    assert order.simulated is True
-                    assert order.fee is None
-                    assert order.filled_price == trading_constants.ZERO
-                    assert order.filled_quantity == order.origin_quantity
+                assert order.status == trading_enum.OrderStatus.FILLED
+                assert order.fee
+                assert order.filled_price > trading_constants.ZERO
+            else:
+                assert order.status == trading_enum.OrderStatus.OPEN
+                assert order.fee is None
+                assert order.filled_price == trading_constants.ZERO
+            assert order.filled_quantity == order.origin_quantity
+            assert order.simulated is True
+            if state == trading_enum.EvaluatorStates.VERY_SHORT.value:
+                assert isinstance(order, trading_personal_data.SellMarketOrder)
+                assert order.side == trading_enum.TradeOrderSide.SELL
+                assert order.order_type == trading_enum.TraderOrderType.SELL_MARKET
+            elif state == trading_enum.EvaluatorStates.SHORT.value:
+                assert isinstance(order, trading_personal_data.SellLimitOrder)
+                assert order.side == trading_enum.TradeOrderSide.SELL
+                assert order.order_type == trading_enum.TraderOrderType.SELL_LIMIT
+            elif state == trading_enum.EvaluatorStates.VERY_LONG.value:
+                assert isinstance(order, trading_personal_data.BuyMarketOrder)
+                assert order.side == trading_enum.TradeOrderSide.BUY
+                assert order.order_type == trading_enum.TraderOrderType.BUY_MARKET
+            elif state == trading_enum.EvaluatorStates.LONG.value:
+                assert isinstance(order, trading_personal_data.BuyLimitOrder)
+                assert order.side == trading_enum.TradeOrderSide.BUY
+                assert order.order_type == trading_enum.TraderOrderType.BUY_LIMIT
 
-                if state == trading_enum.EvaluatorStates.VERY_SHORT.value:
-                    assert isinstance(order, trading_personal_data.SellMarketOrder)
-                    assert order.side == trading_enum.TradeOrderSide.SELL
-                    assert order.order_type == trading_enum.TraderOrderType.SELL_MARKET
-                elif state == trading_enum.EvaluatorStates.SHORT.value:
-                    assert isinstance(order, trading_personal_data.SellLimitOrder)
-                    assert order.side == trading_enum.TradeOrderSide.SELL
-                    assert order.order_type == trading_enum.TraderOrderType.SELL_LIMIT
-                elif state == trading_enum.EvaluatorStates.VERY_LONG.value:
-                    assert isinstance(order, trading_personal_data.BuyMarketOrder)
-                    assert order.side == trading_enum.TradeOrderSide.BUY
-                    assert order.order_type == trading_enum.TraderOrderType.BUY_MARKET
-                elif state == trading_enum.EvaluatorStates.LONG.value:
-                    assert isinstance(order, trading_personal_data.BuyLimitOrder)
-                    assert order.side == trading_enum.TradeOrderSide.BUY
-                    assert order.order_type == trading_enum.TraderOrderType.BUY_LIMIT
-
-                check_order_limits(order, market_status)
+            check_order_limits(order, market_status)
 
 
 def check_portfolio(portfolio, initial_portfolio, orders, only_positivity=False):
-    if orders:
-        orders_market_amount = trading_constants.ZERO
-        orders_currency_amount = trading_constants.ZERO
-        market = orders[0].market
-        order_symbol = orders[0].currency
-        for order in orders:
-            assert order.market == market
-            assert order.currency == order_symbol
-            if order.side == trading_enum.TradeOrderSide.BUY:
-                orders_market_amount += order.origin_quantity * order.origin_price
-            else:
-                orders_currency_amount += order.origin_quantity
-            for symbol in [market, order_symbol]:
-                assert portfolio.get_currency_portfolio(symbol).total >= trading_constants.ZERO
-                assert portfolio.get_currency_portfolio(symbol).available >= trading_constants.ZERO
-                if not only_positivity:
-                    if order.order_type in (
+    if not orders:
+        return
+    orders_market_amount = trading_constants.ZERO
+    orders_currency_amount = trading_constants.ZERO
+    market = orders[0].market
+    order_symbol = orders[0].currency
+    for order in orders:
+        assert order.market == market
+        assert order.currency == order_symbol
+        if order.side == trading_enum.TradeOrderSide.BUY:
+            orders_market_amount += order.origin_quantity * order.origin_price
+        else:
+            orders_currency_amount += order.origin_quantity
+        for symbol in [market, order_symbol]:
+            assert portfolio.get_currency_portfolio(symbol).total >= trading_constants.ZERO
+            assert portfolio.get_currency_portfolio(symbol).available >= trading_constants.ZERO
+            if not only_positivity:
+                if order.order_type in (
                     trading_enum.TraderOrderType.SELL_MARKET, trading_enum.TraderOrderType.BUY_MARKET) and \
                             symbol in [order.market, order.currency]:
-                        # order is filled
-                        assert initial_portfolio.get_currency_portfolio(symbol) != \
-                               portfolio.get_currency_portfolio(symbol)
-                    else:
-                        if order_symbol == symbol:
-                            assert initial_portfolio.get_currency_portfolio(symbol).total == \
-                                   portfolio.get_currency_portfolio(symbol).total
-                            assert initial_portfolio.get_currency_portfolio(symbol).available - orders_currency_amount \
-                                   == portfolio.get_currency_portfolio(symbol).available
-                        elif market == symbol:
-                            assert initial_portfolio.get_currency_portfolio(market).total == \
-                                   portfolio.get_currency_portfolio(market).total
-                            assert initial_portfolio.get_currency_portfolio(market).available - orders_market_amount \
-                                   == portfolio.get_currency_portfolio(market).available
+                    # order is filled
+                    assert initial_portfolio.get_currency_portfolio(symbol) != \
+                           portfolio.get_currency_portfolio(symbol)
+                elif order_symbol == symbol:
+                    assert initial_portfolio.get_currency_portfolio(symbol).total == \
+                           portfolio.get_currency_portfolio(symbol).total
+                    assert initial_portfolio.get_currency_portfolio(symbol).available - orders_currency_amount \
+                           == portfolio.get_currency_portfolio(symbol).available
+                elif market == symbol:
+                    assert initial_portfolio.get_currency_portfolio(market).total == \
+                           portfolio.get_currency_portfolio(market).total
+                    assert initial_portfolio.get_currency_portfolio(market).available - orders_market_amount \
+                           == portfolio.get_currency_portfolio(market).available
 
 
 async def fill_orders(orders, trader):
