@@ -52,10 +52,14 @@ class CommunityTentaclesPackage:
         if packaging.version.parse(self.last_version) <= current_bot_version:
             return self.last_version
         available_versions = sorted([packaging.version.parse(version) for version in self.versions], reverse=True)
-        for version in available_versions:
-            if version <= current_bot_version:
-                return version
-        return None
+        return next(
+            (
+                version
+                for version in available_versions
+                if version <= current_bot_version
+            ),
+            None,
+        )
 
     def is_installed(self):
         #TODO tmp

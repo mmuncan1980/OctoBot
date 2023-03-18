@@ -171,12 +171,13 @@ class IndependentBacktesting:
         market_end = market_data[enums.PriceIndexes.IND_PRICE_CLOSE.value][-1]
 
         if market_begin and market_end and market_begin > 0:
-            market_delta = market_end / market_begin - 1 if market_end >= market_begin \
+            return (
+                market_end / market_begin - 1
+                if market_end >= market_begin
                 else -1 * (1 - market_end / market_begin)
+            )
         else:
-            market_delta = 0
-
-        return market_delta
+            return 0
 
     async def _register_available_data(self):
         for data_file in self.backtesting_files:
@@ -217,8 +218,7 @@ class IndependentBacktesting:
         except errors.ConfigTradingError as e:
             self.logger.error(e)
             trading_mode = "Error when reading trading mode"
-        report = self._get_exchanges_report(reference_market, trading_mode)
-        return report
+        return self._get_exchanges_report(reference_market, trading_mode)
 
     def _get_exchanges_report(self, reference_market, trading_mode):
         SYMBOL_REPORT = "symbol_report"
@@ -360,14 +360,18 @@ class IndependentBacktesting:
         for symbols in self.symbols_to_create_exchange_classes.values():
             symbol = symbols[0]
             if next(iter(self.octobot_backtesting.exchange_type_by_exchange.values())) \
-                    == common_constants.CONFIG_EXCHANGE_FUTURE:
+                        == common_constants.CONFIG_EXCHANGE_FUTURE:
                 if symbol.is_inverse():
-                    if not all([symbol.is_inverse() for symbol in symbols]):
-                        self.logger.error(f"Mixed inverse and linear contracts backtesting are not supported yet")
+                    if not all(symbol.is_inverse() for symbol in symbols):
+                        self.logger.error(
+                            "Mixed inverse and linear contracts backtesting are not supported yet"
+                        )
                     self.octobot_backtesting.futures_contract_type = trading_enums.FutureContractType.INVERSE_PERPETUAL
                 else:
-                    if not all([symbol.is_linear() for symbol in symbols]):
-                        self.logger.error(f"Mixed inverse and linear contracts backtesting are not supported yet")
+                    if not all(symbol.is_linear() for symbol in symbols):
+                        self.logger.error(
+                            "Mixed inverse and linear contracts backtesting are not supported yet"
+                        )
                     self.octobot_backtesting.futures_contract_type = trading_enums.FutureContractType.LINEAR_PERPETUAL
                 # in inverse contracts, use BTC for BTC/USD trading as reference market
                 if symbol.settlement_asset:
@@ -382,7 +386,7 @@ class IndependentBacktesting:
                 else:
                     ref_market_candidates[quote] = 1
                 if ref_market_candidate != quote and \
-                        ref_market_candidates[ref_market_candidate] < ref_market_candidates[quote]:
+                            ref_market_candidates[ref_market_candidate] < ref_market_candidates[quote]:
                     ref_market_candidate = quote
         return ref_market_candidate
 
@@ -398,8 +402,8 @@ class IndependentBacktesting:
             for symbol in symbols:
                 symbol_id = symbol.legacy_symbol()
                 if symbol_id not in self.backtesting_config[common_constants.CONFIG_CRYPTO_CURRENCIES]:
-                    self.backtesting_config[common_constants.CONFIG_CRYPTO_CURRENCIES][symbol_id] = {
-                        common_constants.CONFIG_CRYPTO_PAIRS: []
+                    self.backtesting_config[
+                        common_constants.CONFIG_CRYPTO_CURRENCIES
+                    ][symbol_id] = {
+                        common_constants.CONFIG_CRYPTO_PAIRS: [symbol_id]
                     }
-                    self.backtesting_config[common_constants.CONFIG_CRYPTO_CURRENCIES][symbol_id][
-                        common_constants.CONFIG_CRYPTO_PAIRS] = [symbol_id]

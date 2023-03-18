@@ -80,52 +80,50 @@ class StrategyOptimizer:
             self.is_properly_initialized = True
 
     def find_optimal_configuration(self, TAs=None, time_frames=None, risks=None):
-        if not self.is_computing:
-
-            # set is_computing to True to prevent any simultaneous start
-            self.is_computing = True
-
-            self.errors = set()
-            self.run_results = []
-            self.sorted_results_by_time_frame = {}
-            self.sorted_results_through_all_time_frame = []
-
-            previous_log_level = common_logging.get_global_logger_level()
-
-            try:
-                self.all_TAs = self._get_all_TA() if TAs is None else TAs
-                nb_TAs = len(self.all_TAs)
-
-                self.all_time_frames = self.strategy_class.get_required_time_frames(self.config,
-                                                                                    self.tentacles_setup_config) \
-                    if time_frames is None else time_frames
-                nb_TFs = len(self.all_time_frames)
-
-                self.risks = [1] if risks is None else risks
-
-                self.logger.info(f"Trying to find an optimized configuration for {self.strategy_class.get_name()} "
-                                 f"strategy using {self.trading_mode.get_name()} trading mode, {self.all_TAs} "
-                                 f"technical evaluator(s), {self.all_time_frames} time frames and {self.risks} "
-                                 f"risk(s).")
-
-                self.total_nb_runs = int(len(self.risks) * ((math.pow(2, nb_TFs) - 1) * (math.pow(2, nb_TAs) - 1)))
-
-                self.logger.info("Setting logging level to logging.ERROR to limit messages.")
-                common_logging.set_global_logger_level(logging.ERROR)
-
-                self.run_id = 1
-                self._iterate_on_configs(nb_TAs, nb_TFs)
-                self._find_optimal_configuration_using_results()
-            finally:
-                self.current_test_suite = None
-                common_logging.set_global_logger_level(previous_log_level)
-                self.is_computing = False
-                self.is_finished = True
-                self.logger.info(f"{self.get_name()} finished computation.")
-                self.logger.info("Logging level restored.")
-        else:
+        if self.is_computing:
             raise RuntimeError(f"{self.get_name()} is already computing: processed "
                                f"{self.run_id}/{self.total_nb_runs} processed")
+        # set is_computing to True to prevent any simultaneous start
+        self.is_computing = True
+
+        self.errors = set()
+        self.run_results = []
+        self.sorted_results_by_time_frame = {}
+        self.sorted_results_through_all_time_frame = []
+
+        previous_log_level = common_logging.get_global_logger_level()
+
+        try:
+            self.all_TAs = self._get_all_TA() if TAs is None else TAs
+            nb_TAs = len(self.all_TAs)
+
+            self.all_time_frames = self.strategy_class.get_required_time_frames(self.config,
+                                                                                self.tentacles_setup_config) \
+                    if time_frames is None else time_frames
+            nb_TFs = len(self.all_time_frames)
+
+            self.risks = [1] if risks is None else risks
+
+            self.logger.info(f"Trying to find an optimized configuration for {self.strategy_class.get_name()} "
+                             f"strategy using {self.trading_mode.get_name()} trading mode, {self.all_TAs} "
+                             f"technical evaluator(s), {self.all_time_frames} time frames and {self.risks} "
+                             f"risk(s).")
+
+            self.total_nb_runs = int(len(self.risks) * ((math.pow(2, nb_TFs) - 1) * (math.pow(2, nb_TAs) - 1)))
+
+            self.logger.info("Setting logging level to logging.ERROR to limit messages.")
+            common_logging.set_global_logger_level(logging.ERROR)
+
+            self.run_id = 1
+            self._iterate_on_configs(nb_TAs, nb_TFs)
+            self._find_optimal_configuration_using_results()
+        finally:
+            self.current_test_suite = None
+            common_logging.set_global_logger_level(previous_log_level)
+            self.is_computing = False
+            self.is_finished = True
+            self.logger.info(f"{self.get_name()} finished computation.")
+            self.logger.info("Logging level restored.")
 
     def _iterate_on_configs(self, nb_TAs, nb_TFs):
         # test with several risks
@@ -182,7 +180,9 @@ class StrategyOptimizer:
         no_error = asyncio.run(self.current_test_suite.run_test_suite(self.current_test_suite),
                                debug=constants.OPTIMIZER_FORCE_ASYNCIO_DEBUG_OPTION)
         if not no_error:
-            self.errors = self.errors.union(set([str(e) for e in self.current_test_suite.exceptions]))
+            self.errors = self.errors.union(
+                {str(e) for e in self.current_test_suite.exceptions}
+            )
         run_result = self.current_test_suite.get_test_suite_result()
         self.run_results.append(run_result)
 
@@ -231,12 +231,12 @@ class StrategyOptimizer:
             self.logger.info(f" *** {time_frame} minimum time frame ranking*** ")
             for rank, result in enumerate(results):
                 self.logger.info(f"{rank}: {result.get_result_string()}")
-        self.logger.info(f" *** Top rankings per time frame *** ")
+        self.logger.info(" *** Top rankings per time frame *** ")
         for time_frame, results in self.sorted_results_by_time_frame.items():
-            for i in range(0, min(len(results), 5)):
+            for i in range(min(len(results), 5)):
                 self.logger.info(f"{time_frame}: {results[i].get_result_string(False)}")
-        self.logger.info(f" *** Top rankings through all time frames *** ")
-        for rank, result in enumerate(self.sorted_results_through_all_time_frame[0:25]):
+        self.logger.info(" *** Top rankings through all time frames *** ")
+        for rank, result in enumerate(self.sorted_results_through_all_time_frame[:25]):
             self.logger.info(f"{rank}: {result[CONFIG].get_result_string()} (time frame rank sum: {result[RANK]}) "
                              f"average trades count: {result[TRADES_IN_RESULT]:f}")
         self.logger.info(f" *** Overall best configuration for {self.strategy_class.get_name()} using "
@@ -258,21 +258,26 @@ class StrategyOptimizer:
         return self.current_test_suite.current_progress if self.current_test_suite else 0
 
     def get_report(self):
-        # index, evaluators, risk, score, trades
-        if self.sorted_results_through_all_time_frame:
-            results = [strategy_optimizer.TestSuiteResult.convert_result_into_dict(rank, result[CONFIG].evaluators, "",
-                                                                                   result[CONFIG].risk, result[RANK],
-                                                                                   round(result[TRADES_IN_RESULT], 5))
-                       for rank, result in enumerate(self.sorted_results_through_all_time_frame[0:100])]
-        else:
-            results = []
-        return results
+        return (
+            [
+                strategy_optimizer.TestSuiteResult.convert_result_into_dict(
+                    rank,
+                    result[CONFIG].evaluators,
+                    "",
+                    result[CONFIG].risk,
+                    result[RANK],
+                    round(result[TRADES_IN_RESULT], 5),
+                )
+                for rank, result in enumerate(
+                    self.sorted_results_through_all_time_frame[:100]
+                )
+            ]
+            if self.sorted_results_through_all_time_frame
+            else []
+        )
 
     def get_errors_description(self):
-        if self.errors:
-            return f"{', '.join(self.errors)[0:350]} ..."
-        else:
-            return None
+        return f"{', '.join(self.errors)[:350]} ..." if self.errors else None
 
     @classmethod
     def get_name(cls):

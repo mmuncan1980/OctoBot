@@ -92,9 +92,9 @@ def _log_terms_if_unaccepted(config: configuration.Configuration, logger):
 def _disable_interface_from_param(interface_identifier, param_value, logger):
     if param_value:
         if service_api.disable_interfaces(interface_identifier) == 0:
-            logger.warning("No " + interface_identifier + " interface to disable")
+            logger.warning(f"No {interface_identifier} interface to disable")
         else:
-            logger.info(interface_identifier.capitalize() + " interface disabled")
+            logger.info(f"{interface_identifier.capitalize()} interface disabled")
 
 
 def _log_environment(logger):
@@ -106,11 +106,12 @@ def _log_environment(logger):
 
 def _create_configuration():
     config_path = configuration.get_user_config()
-    config = configuration.Configuration(config_path,
-                                         common_constants.USER_PROFILES_FOLDER,
-                                         constants.CONFIG_FILE_SCHEMA,
-                                         constants.PROFILE_FILE_SCHEMA)
-    return config
+    return configuration.Configuration(
+        config_path,
+        common_constants.USER_PROFILES_FOLDER,
+        constants.CONFIG_FILE_SCHEMA,
+        constants.PROFILE_FILE_SCHEMA,
+    )
 
 
 def _create_startup_config(logger):
@@ -144,7 +145,9 @@ def _validate_config(config, logger):
         if configuration_manager.migrate_from_previous_config(config):
             logger.info("Your configuration has been migrated into the newest format.")
         else:
-            logger.error("OctoBot can't repair your config.json file: invalid format: " + str(err))
+            logger.error(
+                f"OctoBot can't repair your config.json file: invalid format: {str(err)}"
+            )
             raise errors.ConfigError from err
 
 
@@ -251,9 +254,22 @@ def start_octobot(args):
         commands.run_bot(bot, logger)
 
     except errors.ConfigError as e:
-        logger.error("OctoBot can't start without a valid " + common_constants.CONFIG_FILE
-                     + " configuration file.\nError: " + str(e) + "\nYou can use " +
-                     constants.DEFAULT_CONFIG_FILE + " as an example to fix it.")
+        logger.error(
+            (
+                (
+                    (
+                        (
+                            f"OctoBot can't start without a valid {common_constants.CONFIG_FILE}"
+                            + " configuration file.\nError: "
+                        )
+                        + str(e)
+                        + "\nYou can use "
+                    )
+                    + constants.DEFAULT_CONFIG_FILE
+                )
+                + " as an example to fix it."
+            )
+        )
         os._exit(-1)
 
     except errors.NoProfileError:
@@ -380,12 +396,11 @@ def start_background_octobot_with_args(version=False,
                               simulate=simulate,
                               risk=risk,
                               reset_trading_history=reset_trading_history)
-    if in_subprocess:
-        bot_process = multiprocessing.Process(target=start_octobot, args=(args,))
-        bot_process.start()
-        return bot_process
-    else:
+    if not in_subprocess:
         return start_octobot(args)
+    bot_process = multiprocessing.Process(target=start_octobot, args=(args,))
+    bot_process.start()
+    return bot_process
 
 
 def main(args=None):
@@ -401,9 +416,14 @@ def main(args=None):
         from octobot_tentacles_manager import VERSION
 
         if LooseVersion(VERSION) < MIN_TENTACLE_MANAGER_VERSION:
-            print("OctoBot requires OctoBot-Tentacles-Manager in a minimum version of " + MIN_TENTACLE_MANAGER_VERSION +
-                  " you can install and update OctoBot-Tentacles-Manager using the following command: "
-                  "python3 -m pip install -U OctoBot-Tentacles-Manager", file=sys.stderr)
+            print(
+                (
+                    f"OctoBot requires OctoBot-Tentacles-Manager in a minimum version of {MIN_TENTACLE_MANAGER_VERSION}"
+                    + " you can install and update OctoBot-Tentacles-Manager using the following command: "
+                    "python3 -m pip install -U OctoBot-Tentacles-Manager"
+                ),
+                file=sys.stderr,
+            )
             sys.exit(-1)
     except ImportError:
         print("OctoBot requires OctoBot-Tentacles-Manager, you can install it using "

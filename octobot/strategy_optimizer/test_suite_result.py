@@ -52,7 +52,7 @@ class TestSuiteResult:
     def get_evaluators_without_strategy(self):
         evals = copy.copy(self.evaluators)
         evals.remove(self.strategy)
-        return [eval_name for eval_name in evals]
+        return list(evals)
 
     def get_config_summary(self):
         return TestSuiteResultSummary(self)

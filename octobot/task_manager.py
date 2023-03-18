@@ -66,8 +66,11 @@ class TaskManager:
         self.logger.debug("Stopped OctoBot main loop")
 
     def run_forever(self, coroutine):
-        self.loop_forever_thread = threading.Thread(target=self.run_bot_in_thread, args=(coroutine,),
-                                                    name=f"OctoBot Main Thread")
+        self.loop_forever_thread = threading.Thread(
+            target=self.run_bot_in_thread,
+            args=(coroutine,),
+            name="OctoBot Main Thread",
+        )
         self.loop_forever_thread.start()
 
     def stop_tasks(self, stop_octobot=True):
@@ -94,7 +97,7 @@ class TaskManager:
             try:
                 await asyncio.gather(*tasks)
             except asyncio.exceptions.TimeoutError:
-                self.logger.warning(f"Timeout while stopping tasks, forcing stop.")
+                self.logger.warning("Timeout while stopping tasks, forcing stop.")
 
         if stop_coroutines:
             asyncio_tools.run_coroutine_in_asyncio_loop(_await_timeouted_gather(stop_coroutines), self.async_loop)

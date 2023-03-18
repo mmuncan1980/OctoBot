@@ -102,7 +102,7 @@ class CommunityMQTTFeed(abstract_feed.AbstractFeed):
 
     async def fetch_mqtt_device_uuid(self):
         if self._fetching_uuid:
-            self.logger.info(f"Waiting for feed UUID fetching")
+            self.logger.info("Waiting for feed UUID fetching")
             await asyncio.wait_for(self._fetched_uuid.wait(), self.DEVICE_CREATE_TIMEOUT + 2)
         else:
             await self._fetch_mqtt_device_uuid()
@@ -173,10 +173,9 @@ class CommunityMQTTFeed(abstract_feed.AbstractFeed):
             return False
         self._processed_messages.add(parsed_message[commons_enums.CommunityFeedAttrs.ID.value])
         if len(self._processed_messages) > self.MAX_MESSAGE_ID_CACHE_SIZE:
-            self._processed_messages = [
-                message_id
-                for message_id in self._processed_messages[self.MAX_MESSAGE_ID_CACHE_SIZE // 2:]
-            ]
+            self._processed_messages = list(
+                self._processed_messages[self.MAX_MESSAGE_ID_CACHE_SIZE // 2 :]
+            )
         return True
 
     async def send(self, message, channel_type, identifier, **kwargs):
@@ -189,8 +188,7 @@ class CommunityMQTTFeed(abstract_feed.AbstractFeed):
         )
 
     def _get_callbacks(self, topic):
-        for callback in self.feed_callbacks.get(topic, ()):
-            yield callback
+        yield from self.feed_callbacks.get(topic, ())
 
     def _get_channel_type(self, message):
         return commons_enums.CommunityChannelTypes(message[commons_enums.CommunityFeedAttrs.CHANNEL_TYPE.value])
@@ -286,7 +284,7 @@ class CommunityMQTTFeed(abstract_feed.AbstractFeed):
         self._update_client_config(self._mqtt_client)
         self._register_callbacks(self._mqtt_client)
         self._mqtt_client.set_auth_credentials(self._device_uuid, None)
-        self.logger.debug(f"Connecting client")
+        self.logger.debug("Connecting client")
         await self._mqtt_client.connect(self.feed_url, self.mqtt_broker_port, version=self.MQTT_VERSION)
 
     def _subscribe(self, topics):

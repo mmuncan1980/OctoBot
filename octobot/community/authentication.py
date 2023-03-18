@@ -76,9 +76,6 @@ class CommunityAuthentication(authentication.Authenticator):
     async def update_supports(self):
         self._update_supports(200, self._supports_mock())
         return
-        # TODO use real support fetch when implemented
-        async with self._aiohttp_session.get("supports_url") as resp:
-            self._update_supports(resp.status, await resp.json())
 
     def is_initialized(self):
         return self._fetch_account_task is not None and self._fetch_account_task.done()
@@ -187,15 +184,14 @@ class CommunityAuthentication(authentication.Authenticator):
         except KeyError as e:
             raise authentication.AuthenticationRequired("Authentication required") from e
         async with self.get_aiohttp_session().post(
-                identifiers_provider.IdentifiersProvider.GQL_AUTH_URL, json={"key": token}
-        ) as resp:
+                    identifiers_provider.IdentifiersProvider.GQL_AUTH_URL, json={"key": token}
+            ) as resp:
             json_resp = await resp.json()
-            if resp.status == 200:
-                self.user_account.gql_access_token = json_resp["access_token"]
-                self.user_account.gql_user_id = json_resp["user_id"]
-            else:
+            if resp.status != 200:
                 raise authentication.FailedAuthentication(f"Failed to authenticate to graphql server: "
                                                           f"status: {resp.status}, data: {json_resp}")
+            self.user_account.gql_access_token = json_resp["access_token"]
+            self.user_account.gql_user_id = json_resp["user_id"]
 
     def can_authenticate(self):
         return "todo" not in self.authentication_url
@@ -303,12 +299,11 @@ class CommunityAuthentication(authentication.Authenticator):
 
     @authentication.authenticated
     def get(self, url, params=None, allow_cache=False, **kwargs):
-        if allow_cache:
-            if url not in self._cache:
-                self._cache[url] = self._session.get(url, params=params, **kwargs)
-            return self._cache[url]
-        else:
+        if not allow_cache:
             return self._session.get(url, params=params, **kwargs)
+        if url not in self._cache:
+            self._cache[url] = self._session.get(url, params=params, **kwargs)
+        return self._cache[url]
 
     @authentication.authenticated
     def download(self, url, target_file, params=None, **kwargs):
@@ -357,7 +352,7 @@ class CommunityAuthentication(authentication.Authenticator):
     def _update_supports(self, resp_status, json_data):
         if resp_status == 200:
             self.user_account.supports = community_supports.CommunitySupports.from_community_dict(json_data)
-            self.logger.debug(f"Fetched supports data.")
+            self.logger.debug("Fetched supports data.")
         else:
             self.logger.error(f"Error when fetching community support, "
                               f"error code: {resp_status}")
@@ -372,11 +367,9 @@ class CommunityAuthentication(authentication.Authenticator):
         }
 
     def _get_support_role(self):
-        try:
+        with contextlib.suppress(KeyError):
             if self.user_account.get_has_donated():
                 return community_supports.CommunitySupports.OCTOBOT_DONOR_ROLE
-        except KeyError:
-            pass
         return community_supports.CommunitySupports.DEFAULT_SUPPORT_ROLE
 
     async def _auth_and_fetch_account(self):
@@ -493,16 +486,14 @@ class CommunityAuthentication(authentication.Authenticator):
             self.user_account.set_profile_raw_data(json_resp)
             return
         elif json_resp is None and status_code < 500:
-            if json_resp is not None:
-                if error := json_resp.get("error", None):
-                    raise authentication.FailedAuthentication(f"Error when authenticating: {error['message']}")
             raise authentication.FailedAuthentication("Invalid username or password." if self._auth_token is None else
                                                       "Token expired. Please re-login to your community account")
         elif json_resp and status_code == 400:
             if error := json_resp.get("error", None):
                 if "logged in" in error['message'].lower():
-                    raise authentication.FailedAuthentication(f"Error when authenticating, please "
-                                                              f"re-login to your community account")
+                    raise authentication.FailedAuthentication(
+                        'Error when authenticating, please re-login to your community account'
+                    )
         raise authentication.AuthenticationError(f"Error code: {status_code}")
 
     def _update_sessions_headers(self):

@@ -148,9 +148,8 @@ async def test_upload_soon(error_uploader, basic_error):
     @contextlib.asynccontextmanager
     async def session_mock(*args, **kwargs):
         yield await _session_mock(*args, **kwargs)
-    with mock.patch.object(asyncio, "sleep", mock.AsyncMock()) as sleep_mock, \
-         mock.patch.object(aiohttp, "ClientSession", session_mock), \
-         mock.patch.object(error_uploader, "_schedule_upload", mock.Mock()) as _schedule_upload_mock:
+
+    with (mock.patch.object(asyncio, "sleep", mock.AsyncMock()) as sleep_mock, mock.patch.object(aiohttp, "ClientSession", session_mock), mock.patch.object(error_uploader, "_schedule_upload", mock.Mock()) as _schedule_upload_mock):
         with mock.patch.object(error_uploader, "_upload_errors", mock.AsyncMock()) as _upload_errors_mock:
 
             # no error to upload
@@ -164,7 +163,7 @@ async def test_upload_soon(error_uploader, basic_error):
             # errors to upload
             error_uploader._to_upload_errors = [basic_error]
             await error_uploader._upload_soon()
-            assert error_uploader._to_upload_errors == []
+            assert not error_uploader._to_upload_errors
             sleep_mock.assert_called_once_with(error_uploader.upload_delay)
             _session_mock.assert_called_once()
             _upload_errors_mock.assert_called_once_with("plop", [basic_error])
@@ -175,6 +174,7 @@ async def test_upload_soon(error_uploader, basic_error):
 
         async def upload_errors_adding_errors(*_):
             error_uploader._to_upload_errors = [basic_error]
+
         with mock.patch.object(error_uploader, "_upload_errors", upload_errors_adding_errors):
             # errors to upload
             error_uploader._to_upload_errors = [basic_error]
