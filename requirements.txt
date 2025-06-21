@@ -20,3 +20,4 @@ requests==2.25.1
 # Community
 websockets
 gmqtt==0.6.11
+urllib3>=2.5.0 # not directly required, pinned by Snyk to avoid a vulnerability
